@@ -3,6 +3,8 @@ extern crate rustc_serialize;
 extern crate docopt;
 
 use docopt::Docopt;
+use std::result::Result;
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Doctopt usage & args
@@ -47,13 +49,17 @@ fn main() {
     //    Err(e) => e.exit(),
     // };
     println!("{0:?}", args);
+    println!(args.arg_file[0]);
 }
 
 
 //////////////////////////////////////////////////////////////////////////////
 // word count
 
-//fn wc(file: )
+fn wc(args: &args) -> Result<(), i32>
+{
+
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
