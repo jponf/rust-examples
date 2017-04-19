@@ -3,6 +3,8 @@ extern crate rustc_serialize;
 extern crate docopt;
 
 use docopt::Docopt;
+
+use std::io::{BufRead, BufReader, Read};
 use std::result::Result;
 
 
@@ -10,7 +12,9 @@ use std::result::Result;
 // Doctopt usage & args
 
 static USAGE_STR: &'static str = "
-Usage: wc [options] <file> ...
+Usage: 
+    wc -h
+    wc [options] <files> ...
 
 Options:
     -c, --bytes            print the byte counts
@@ -22,14 +26,28 @@ Options:
     -v, --version          output version information and exit
 ";
 
+
 #[derive(Debug,RustcDecodable)]
 struct Args {
-    arg_file: Option<Vec<String>>,
+    arg_files: Option<Vec<String>>,
     flag_bytes: bool,
     flag_chars: bool,
     flag_lines: bool,
     flag_words: bool,
     flag_max_line_length: bool,
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+// Word count result structure
+
+struct WcResult {
+    title: String,
+    bytes: usize,
+    chars: usize,
+    lines: usize,
+    words: usize,
+    max_line_length: usize,
 }
 
 
@@ -48,17 +66,36 @@ fn main() {
     //    Ok(args) => args,
     //    Err(e) => e.exit(),
     // };
-    println!("{0:?}", args);
-    println!(args.arg_file[0]);
+
+    //println!("{0:?}", args);
+    //println!("{}", args.arg_files.unwrap()[0]);
+    let results = match args.arg_files {
+        None => { 
+            println!("Error: no file");
+            std::process::exit(-1);
+        },
+        Some(files_paths) => wc(files_paths)
+    };
 }
 
 
 //////////////////////////////////////////////////////////////////////////////
 // word count
 
-fn wc(args: &args) -> Result<(), i32>
-{
+fn wc(files_paths: Vec<String>) -> Result<Vec<WcResult>, i32> {
+    let mut total_line_count: usize = 0;
+    let mut total_word_count: usize = 0;
+    let mut total_char_count: usize = 0;
+    let mut total_byte_count: usize = 0;
+    let mut total_longest_line_length: usize = 0;
 
+    let mut results : Vec<WcResult> = Vec::new();
+
+    for f_path in files_paths {
+        println!("{}", f_path);
+    }
+
+    return Ok(results);
 }
 
 
@@ -81,4 +118,25 @@ fn is_space(byte: u8) -> bool {
 #[inline(always)]
 fn is_word_separator(byte: u8) -> bool {
     is_space(byte) || byte == SYN
+}
+
+
+fn open_buf_reader(path: &str) 
+-> Result<BufReader<Box<Read+'static>>, std::io::Error> {
+    if "-" == path {
+        let reader = Box::new(std::io::stdin());
+        return Ok(BufReader::new(reader));
+    }
+
+    let fpath = std::path::Path::new(path);
+    if fpath.is_dir() {
+        println!("{}: is a directory", path)
+    }
+    match std::fs::File::open(&fpath) {
+        Ok(fd) => {
+            let reader = Box::new(fd);
+            Ok(BufReader::new(reader))
+        }
+        Err(e) => Err(e)
+    }
 }
