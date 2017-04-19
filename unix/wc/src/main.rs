@@ -4,6 +4,7 @@ extern crate docopt;
 
 use docopt::Docopt;
 
+use std::ascii::AsciiExt;
 use std::io::{BufRead, BufReader, Read};
 use std::result::Result;
 
@@ -39,7 +40,7 @@ struct Args {
 
 
 //////////////////////////////////////////////////////////////////////////////
-// Word count result structure
+// Other structures
 
 struct WcResult {
     title: String,
@@ -55,52 +56,163 @@ struct WcResult {
 //
 
 fn main() {
-    let args: Args = Docopt::new(USAGE_STR).and_then(|d| d.decode())
-                                           .unwrap_or_else(|e| e.exit());
-    // the previous line is the same as
-    // let docopt = match Docopt::new(USAGE_STR) {
-    //    Ok(d) => d,
-    //    Err(e) => e.exit(),
-    // };
-    // let args: ARgs = match docopt.decode() {
-    //    Ok(args) => args,
-    //    Err(e) => e.exit(),
-    // };
-
-    //println!("{0:?}", args);
-    //println!("{}", args.arg_files.unwrap()[0]);
-    let results = match args.arg_files {
+    let args: Args = parse_command_line_arguments();
+    
+    let result = match args.arg_files {
         None => { 
             println!("Error: no file");
             std::process::exit(-1);
         },
-        Some(files_paths) => wc(files_paths)
+        Some(ref files_paths) => wc_all(files_paths)
     };
+
+    match result {
+        Ok(ref wc_results) => print_results(&args, wc_results),
+        Err(e) => {
+            println!("Error: {}", e);
+            std::process::exit(-1);
+        }
+    }
 }
+
+
+fn parse_command_line_arguments() -> Args {
+    // the following line is the same as
+    // let docopt = match Docopt::new(USAGE_STR) {
+    //    Ok(d) => d,
+    //    Err(e) => e.exit(),
+    // };
+    // let args: Args = match docopt.decode() {
+    //    Ok(args) => args,
+    //    Err(e) => e.exit(),
+    // };
+    let args: Args = Docopt::new(USAGE_STR).and_then(|d| d.decode())
+                                           .unwrap_or_else(|e| e.exit());
+
+    if args.flag_bytes || args.flag_chars || args.flag_lines
+            || args.flag_words || args.flag_max_line_length {
+        return args;
+    }
+
+    Args {
+        arg_files: args.arg_files,
+        flag_bytes: true,
+        flag_chars: true,
+        flag_lines: true,
+        flag_words: true,
+        flag_max_line_length: false
+    }
+}
+
 
 
 //////////////////////////////////////////////////////////////////////////////
 // word count
 
-fn wc(files_paths: Vec<String>) -> Result<Vec<WcResult>, i32> {
-    let mut total_line_count: usize = 0;
-    let mut total_word_count: usize = 0;
-    let mut total_char_count: usize = 0;
+fn wc_all(files_paths: &Vec<String>) -> Result<Vec<WcResult>, std::io::Error> {
     let mut total_byte_count: usize = 0;
+    let mut total_char_count: usize = 0;
+    let mut total_line_count: usize = 0;
+    let mut total_word_count: usize = 0;    
     let mut total_longest_line_length: usize = 0;
 
     let mut results : Vec<WcResult> = Vec::new();
 
     for f_path in files_paths {
-        println!("{}", f_path);
+        let result = try!(wc_file(f_path));
+        total_byte_count += result.bytes;
+        total_char_count += result.chars;
+        total_line_count += result.lines;
+        total_word_count += result.words;
+
+        total_longest_line_length = std::cmp::max(result.max_line_length, 
+                                                  total_longest_line_length);
+
+        results.push(result);
+    }
+
+    if files_paths.len() > 1 {
+        results.push(WcResult {
+            title: "total".to_owned(),
+            bytes: total_byte_count,
+            chars: total_char_count,
+            lines: total_line_count,
+            words: total_word_count,
+            max_line_length: total_longest_line_length
+        });
     }
 
     return Ok(results);
 }
 
 
+fn wc_file(file_path: &String) -> Result<WcResult, std::io::Error> {
+    let mut byte_count: usize = 0;
+    let mut char_count: usize = 0;
+    let mut line_count: usize = 0;
+    let mut word_count: usize = 0;
+    let mut longest_line_length: usize = 0;
+    let mut raw_line = Vec::new();
+
+    let mut reader = try!(open_buf_reader(file_path));
+
+    while match reader.read_until(LF, &mut raw_line) {
+        Ok(n) if n > 0 => true,
+        Err(ref e) if !raw_line.is_empty() => {
+            println!("Error while reading {}: {}", file_path, e);
+            !raw_line.is_empty()
+        },
+        _ => false,
+    } { // while body
+        if *raw_line.last().unwrap() == LF {
+            line_count += 1;
+        }
+
+        byte_count += raw_line.len();
+
+        // try and convert the bytes to utf-8 first
+        let num_chars;
+        match std::str::from_utf8(&raw_line[..]) {
+            Ok(line) => {
+                word_count += line.split_whitespace().count();
+                num_chars = line.chars().count();
+            },
+            Err(..) => {
+                word_count += raw_line.split(|&x| is_word_separator(x)).count();
+                num_chars = raw_line.iter().filter(|c| c.is_ascii()).count();
+            }
+        }
+        char_count += num_chars;
+        longest_line_length = std::cmp::max(num_chars, longest_line_length);
+
+        raw_line.clear();
+    }
+
+    Ok(WcResult {
+        title: file_path.clone(),
+        bytes: byte_count,
+        chars: char_count,
+        lines: line_count,
+        words: word_count,
+        max_line_length: longest_line_length
+    })
+}
+
+
+fn print_results(args: &Args, wc_results: &Vec<WcResult>) {
+    for wc_res in wc_results {
+        print_result(args, wc_res)
+    }
+}
+
+fn print_result(args: &Args, wc_res: &WcResult) {
+    if args.flag_lines {
+        print!("{:1$}", wc_res.lines, 2);
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
-// Utility functions
+// WC utility functions
 
 const CR: u8 = '\r' as u8;
 const LF: u8 = '\n' as u8;
