@@ -97,7 +97,7 @@ fn parse_command_line_arguments() -> Args {
     Args {
         arg_files: args.arg_files,
         flag_bytes: true,
-        flag_chars: true,
+        flag_chars: false,
         flag_lines: true,
         flag_words: true,
         flag_max_line_length: false
@@ -207,8 +207,21 @@ fn print_results(args: &Args, wc_results: &Vec<WcResult>) {
 
 fn print_result(args: &Args, wc_res: &WcResult) {
     if args.flag_lines {
-        print!("{:1$}", wc_res.lines, 2);
+        print!("{} ", wc_res.lines);
     }
+    if args.flag_words {
+        print!("{} ", wc_res.words);
+    }
+    if args.flag_bytes {
+        print!("{} ", wc_res.bytes);
+    }
+    if args.flag_chars {
+        print!("{} ", wc_res.chars);
+    }
+    if args.flag_max_line_length {
+        print!("{} ", wc_res.max_line_length);
+    }
+    println!("{}", wc_res.title);
 }
 
 //////////////////////////////////////////////////////////////////////////////
