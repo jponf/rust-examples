@@ -28,5 +28,14 @@ struct Args {
 //
 
 fn main() {
+    let args: Args = parse_command_line_arguments();
 
+    
+}
+
+
+fn parse_command_line_arguments() -> Args {
+    let args: Args = Docopt::new(USAGE_STR).and_then(|d| d.decode())
+                                           .unwrap_or_else(|e| e.exit());
+    args
 }
