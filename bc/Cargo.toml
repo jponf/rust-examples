@@ -1,0 +1,15 @@
+[package]
+name = "bc"
+version = "0.1.0"
+authors = ["Josep Pon Farreny <jponfarreny@gmail.com>"]
+license = ""
+description = ""
+build = "build.rs"
+
+[build-dependencies]
+peg = "0.5"
+
+[dependencies]
+docopt = "0.7"
+rustc-serialize = "0.3"
+
