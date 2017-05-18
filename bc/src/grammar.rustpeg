@@ -3,6 +3,6 @@
 number
     = [0-9]
 
-decimal
-    = number*"."?number+
+pub decimal -> String
+    = n:$(number*"."?number+) { n.to_string() }
 

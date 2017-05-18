@@ -9,3 +9,6 @@ Cargo.lock
 
 # Windows
 *.exe
+
+# KDE
+.directory

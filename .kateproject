@@ -1,0 +1,10 @@
+ 
+{
+    "name": "rust-examples",
+    "files": [ 
+        { "directory": ".", "filters": ["*.md", "*.rs", 
+                                        "*.rustpeg",
+                                        "*.lock", "*.toml"],
+          "recursive": 1 } 
+    ]
+}
