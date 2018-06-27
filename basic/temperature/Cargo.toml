@@ -1,0 +1,14 @@
+[package]
+name = "temperature"
+version = "0.1.0"
+authors = ["Josep <jponfarreny@gmail.com>"]
+
+[[bin]]
+name = "farenheit_to_celsius"
+path = "src/farenheit_to_celsius.rs"
+
+[[bin]]
+name = "celsius_to_farenheit"
+path = "src/celsius_to_farenheit.rs"
+
+[dependencies]
